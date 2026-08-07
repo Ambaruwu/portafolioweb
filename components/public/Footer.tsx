@@ -1,0 +1,1 @@
+export default function Footer({ location }: { location?: string }) { return <footer className="public-footer">© 2026 Ámbar Centeno · Todos los derechos reservados · {location || 'Arequipa, Perú'}.</footer> }
