@@ -48,6 +48,7 @@ export default function AdminDashboardPage() {
   const [destacados, setDestacados] = useState<DestacadoItem[]>([])
   const [proyectos, setProyectos] = useState<ProyectoItem[]>([])
   const [certificaciones, setCertificaciones] = useState<CertificacionItem[]>([])
+  const [uploadingField, setUploadingField] = useState<'foto_url' | 'cv_url' | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -108,6 +109,24 @@ export default function AdminDashboardPage() {
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.replace('/admin')
+  }
+
+  async function uploadFile(file: File, field: 'foto_url' | 'cv_url') {
+    setUploadingField(field)
+    setError('')
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      body.append('carpeta', 'perfil')
+      const response = await fetch('/api/admin/upload', { method: 'POST', body })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'No se pudo subir el archivo')
+      updateField(field, data.url)
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'No se pudo subir el archivo')
+    } finally {
+      setUploadingField(null)
+    }
   }
 
   async function addHerramienta(nombre: string) {
@@ -257,7 +276,11 @@ export default function AdminDashboardPage() {
         <section className="rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/70 ring-1 ring-slate-200 sm:p-8">
           <h2 className="mb-6 text-xl font-semibold">Perfil</h2>
           <form onSubmit={handleSubmit} className="grid gap-5 sm:grid-cols-2">
-            {fields.map(([name, label]) => <label key={name} className="grid gap-2 text-sm font-medium">{label}<input value={form[name]} onChange={(e) => updateField(name, e.target.value)} className="rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" /></label>)}
+            {fields.map(([name, label]) => {
+              if (name === 'foto_url') return <div key={name} className="grid gap-2 text-sm font-medium"><span className="font-medium">{label}</span><div className="flex flex-wrap items-center gap-3"><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm">{uploadingField === 'foto_url' && <Loader2 className="h-4 w-4 animate-spin" />}{uploadingField === 'foto_url' ? 'Subiendo...' : form.foto_url ? 'Reemplazar foto' : 'Subir foto'}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploadingField !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadFile(file, 'foto_url') }} /></label>{form.foto_url && <img src={form.foto_url} alt="Vista previa" className="h-12 w-12 rounded-lg object-cover" />}</div></div>
+              if (name === 'cv_url') return <div key={name} className="grid gap-2 text-sm font-medium"><span className="font-medium">{label}</span><div className="flex flex-wrap items-center gap-3"><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm">{uploadingField === 'cv_url' && <Loader2 className="h-4 w-4 animate-spin" />}{uploadingField === 'cv_url' ? 'Subiendo...' : form.cv_url ? 'Reemplazar CV' : 'Subir CV (PDF)'}<input type="file" accept="application/pdf" className="sr-only" disabled={uploadingField !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadFile(file, 'cv_url') }} /></label>{form.cv_url && <span className="max-w-xs truncate text-sm text-slate-500">{form.cv_url.split('/').pop()}</span>}</div></div>
+              return <label key={name} className="grid gap-2 text-sm font-medium">{label}<input value={form[name]} onChange={(e) => updateField(name, e.target.value)} className="rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" /></label>
+            })}
             <label className="grid gap-2 text-sm font-medium sm:col-span-2">Texto de biografía<textarea value={form.bio_texto} onChange={(e) => updateField('bio_texto', e.target.value)} rows={5} className="rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" /></label>
             <label className="grid gap-2 text-sm font-medium sm:col-span-2">Mensaje de contacto<textarea value={form.mensaje_contacto} onChange={(e) => updateField('mensaje_contacto', e.target.value)} rows={4} className="rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" /></label>
              <div className="flex items-center gap-4 sm:col-span-2"><button disabled={saving} className="inline-flex min-w-[9.5rem] items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-70">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? 'Guardando...' : 'Guardar cambios'}</button>{message && <p className="text-sm text-emerald-600">{message}</p>}{error && <p role="alert" className="text-sm text-red-600">{error}</p>}</div>
